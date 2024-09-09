@@ -156,7 +156,7 @@ else:
     if user_input:
         # Generate AI response using OpenAI's GPT
         with st.spinner("Generating response..."):
-            if (False):
+            if (True):
                 response = llm.chat.completions.create(messages=[{"role": "system", "content":user_input}],
                         model="gpt-4o",
                         max_tokens=150,
