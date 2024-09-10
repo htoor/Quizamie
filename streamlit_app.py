@@ -112,7 +112,7 @@ if st.session_state.generate_clicked:
             save_problem_to_db(module, difficulty, problem_data)
         reusable_problems = [
             p for p in problem_database.get(module, {}).get(difficulty, [])
-            if p["problem"] not in st.session_state["used_problems"]
+            if p["problem"] not in st.session_state["used_problems"] #
         ]
         
 
