@@ -58,88 +58,108 @@ def save_problem_to_db(subject, difficulty, problem_data):
 # Streamlit UI
 st.title("Learning Platform")
 st.write("Select a module and ask a question!")
- 
+# Check if session state is None and set it to "Generate Problem"
+# Initialize session state variables
+if 'generate_clicked' not in st.session_state:
+    st.session_state.generate_clicked = False
+if 'check_answer_clicked' not in st.session_state:
+    st.session_state.check_answer_clicked = False
+# Track problems used in the current session
+if "used_problems" not in st.session_state:
+    st.session_state["used_problems"] = set()
 # Add a dropdown to select the module
-module = st.selectbox("Choose a module:", [ "Math","General"])
- 
-# Add a dropdown for difficulty level if Math module is selected if module == "Math":
-difficulty = st.selectbox("Select difficulty level:", ["Beginner", "Intermediate", "Advanced"])
- 
-if module == "Math":
-    # Track problems used in the current session
-    if "used_problems" not in st.session_state:
-        st.session_state["used_problems"] = set()
-   
+with st.form("Problem Form"):
+    subjects_k12 = ["English", "Math", "Science", "History", "Geography", "Art", "Music", "Physical Education"]
+    module = st.selectbox("Choose a module:", subjects_k12)
+    # Add a dropdown for subjects if General module is selected
+    difficulty = st.selectbox("Select difficulty level:", ["Beginner", "Intermediate", "Advanced"])
+    # Ensure at least one new problem is generated
+    if st.form_submit_button("Generate Problem"):
+        st.session_state.generate_clicked = True
+        st.session_state.module = module
+        st.session_state.difficulty = difficulty
+
+if st.session_state.generate_clicked:    
     # Attempt to reuse a problem
     reusable_problems = [
         p for p in problem_database.get(module, {}).get(difficulty, [])
         if p["problem"] not in st.session_state["used_problems"]
-    ]
- 
+]
     if reusable_problems:
         problem_data = random.choice(reusable_problems)
         st.session_state["used_problems"].add(problem_data["problem"])
     else:
-        problem_data = None
- 
-    # Ensure at least one new problem is generated
-    if not problem_data or len(st.session_state["used_problems"]) < 1:
-        if st.button("Generate Problem"):
-            # Generate a math problem based on the selected difficulty level
-            prompt = (f"Generate a {difficulty.lower()} level math problem for a student to solve. "
-                "Provide the response as a JSON object with keys: 'problem', 'answer', and 'solution'."
-)
-            with st.spinner("Generating problem..."):
-                problem_response = llm.chat.completions.create(messages=[{"role": "system", "content":prompt}],
-                    model="gpt-4o",
-                    max_tokens=100,
-                    n=1,
-                    stop=None,
-                    temperature=0.7,
-                )
-               
-                problem = problem_response.choices[0].message.content
-                print(problem)
-                problem_data = eval(problem)
-                st.session_state["used_problems"].add(problem_data["problem"])
-                save_problem_to_db(module, difficulty, problem_data)
-   
-        # Display the problem statement
+        prompt = (f"Generate a {difficulty.lower()} level {module} problem for a student to solve. "
+            "Provide the response as a simple JSON object with keys: 'problem', 'answer', and 'solution'. Make sure that the generated json string can be parsed as a json object and errror out due to special characters"
+        )
+        with st.spinner("Generating problem..."):
+            problem_response = llm.chat.completions.create(messages=[{"role": "system", "content":prompt}],
+                model="gpt-4o",
+                max_tokens=500,
+                n=1,
+                stop=None,
+                temperature=0.7,
+            )
+            
+            problem = problem_response.choices[0].message.content
+            # Remove the three ticks and the word "json" from the first line
+            problem = problem.replace("```json", "").replace("```", "").replace("json", "", 1)
+            print(problem)
+            problem_data = json.loads(problem)
+            st.session_state.problem = problem_data["problem"]
+            print(problem_data)
+            #st.session_state["used_problems"].st.session_state.problem)
+            save_problem_to_db(module, difficulty, problem_data)
+        reusable_problems = [
+            p for p in problem_database.get(module, {}).get(difficulty, [])
+            if p["problem"] not in st.session_state["used_problems"]
+        ]
+        
+
+    # Display the problem statement
     if problem_data:
+        st.session_state.correct_answer=problem_data["answer"]
+        st.session_state.solution=problem_data["solution"]
         st.write("### Problem Statement:")
         st.write(problem_data['problem'])
-       
-        # Allow user to attempt the problem
-        user_answer = st.text_input("Enter your answer:")
- 
-        if user_answer:
-            correct_answer = problem_data["answer"]
-            if user_answer.strip() == correct_answer.strip():
+        
+    # Allow user to attempt the problem
+    with st.form("Answer Form"):
+        st.session_state.user_answer = st.text_input("Enter your answer:")
+        submit_button = st.form_submit_button("Check Answer")
+
+        if submit_button:
+            st.session_state.check_answer_clicked = True
+        if st.session_state.check_answer_clicked:   
+            correct_answer = st.session_state.correct_answer
+
+            if st.session_state.user_answer .strip() == correct_answer.strip():
                 st.success("Correct! Well done.")
             else:
                 st.error(f"Incorrect. The correct answer is: {correct_answer}")
-           
+            
             # Provide an option to view the solution
             with st.expander("View the solution"):
                 st.write("### Step-by-Step Solution:")
-                st.write(problem_data["solution"])
-           
+                st.write(st.session_state.solution)
+            
             
             # Capture feedback
             feedback_choice = st.radio("Did you find this feedback helpful?", ["👍", "👎"], key="feedback_choice")
-           
+            
             if feedback_choice:
                 feedback_data = {
                     "timestamp": datetime.now().isoformat(),
-                    "question": problem_data["problem"],
-                    "difficulty": difficulty,
-                    "user_answer": user_answer,
-                    "correct_answer": correct_answer,
-                    "ai_solution": problem_data["solution"],
+                    "module":st.session_state.module,
+                    "question": st.session_state.problem,
+                    "difficulty": st.session_state.difficulty,
+                    "user_answer": st.session_state.user_answer ,
+                    "correct_answer": st.session_state.correct_answer,
+                    "ai_solution": st.session_state.solution,
                     "user_feedback": (feedback_choice=="👍")
                 }
                 log_feedback(feedback_data)
-               
+                
                 # Update problem database with feedback
                 for problem in problem_database[module][difficulty]:
                     if problem["problem"] == problem_data["problem"]:
@@ -147,27 +167,7 @@ if module == "Math":
                         break
                 with open(problem_db_file, "w") as file:
                     json.dump(problem_database, file)
-               
+                
                 st.success("Thank you for your feedback!")
- 
-else:
-    user_input = st.text_input("Ask a question or enter a topic:")
- 
-    if user_input:
-        # Generate AI response using OpenAI's GPT
-        with st.spinner("Generating response..."):
-            if (True):
-                response = llm.chat.completions.create(messages=[{"role": "system", "content":user_input}],
-                        model="gpt-4o",
-                        max_tokens=150,
-                        n=1,
-                        stop=None,
-                        temperature=0.7,
-                    )
-                st.write("### AI Response:")
-                st.write(response.choices[0].text.strip())
-            else:
-                st.write("### AI Response:")
-                st.write(user_input.strip())
 
- 
+    
