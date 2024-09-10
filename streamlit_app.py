@@ -133,7 +133,7 @@ if st.session_state.generate_clicked:
         if st.session_state.check_answer_clicked:   
             correct_answer = st.session_state.correct_answer
 
-            if st.session_state.user_answer .strip() == correct_answer.strip():
+            if st.session_state.user_answer.strip() == correct_answer.strip():
                 st.success("Correct! Well done.")
             else:
                 st.error(f"Incorrect. The correct answer is: {correct_answer}")
