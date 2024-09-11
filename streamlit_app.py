@@ -75,7 +75,7 @@ def step_1():
 
 
 def step_2():
-    st.title("Step 2: Generate or Reuse a Problem")
+    st.title("Step 2: Solve a Problem")
 
     # Attempt to reuse a problem
     module = st.session_state.module
@@ -127,7 +127,7 @@ def step_2():
         st.session_state.step = 1
         print("Back button clicked",st.session_state.user_answer)
 
-    back_button = st.button("Back", on_click=back_button_clicked)
+    #back_button = st.button("Back", on_click=back_button_clicked)
     cancel_button = st.button("Cancel")
 
 
@@ -136,9 +136,9 @@ def step_2():
         st.session_state.step = 3
         st.rerun()
         
-    if back_button:
-        st.session_state.step = 1
-        st.rerun()
+    #if back_button:
+    #    st.session_state.step = 1
+    #    st.rerun()
     if cancel_button:
         reset_session_state()
         st.rerun()
@@ -164,7 +164,7 @@ def step_5():
             reset_session_state()
 
 def step_3():
-    st.title("Step 4: Review Your Answer")
+    st.title("Step 3: Review Your Answer")
 
     correct_answer = st.session_state.correct_answer
     if st.session_state.user_answer.strip() == correct_answer.strip():
@@ -201,14 +201,14 @@ def step_3():
         st.success("Thank you for your feedback!")
 
     done_button = st.button("Done")
-    back_button = st.button("Back")
+    #back_button = st.button("Back")
    
     if done_button:
         reset_session_state()
         st.rerun()
-    if back_button:
-        st.session_state.step = 2
-        st.rerun()
+    #if back_button:
+    #    st.session_state.step = 2
+    #    st.rerun()
 
 # Render the correct step with navigation
 if 'step' not in st.session_state:
